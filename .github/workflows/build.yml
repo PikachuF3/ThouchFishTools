@@ -12,19 +12,17 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            ffmpeg_url: https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-full_build-shared.zip
           - os: macos-latest
             platform: macos
-            ffmpeg_url: https://evermeet.cx/ffmpeg/getrelease/zip
 
     runs-on: ${{ matrix.os }}
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # 顺便升级到 v4 以保持最新
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 升级到 v5
       with:
         python-version: '3.12'
 
@@ -38,8 +36,8 @@ jobs:
       if: matrix.platform == 'windows'
       run: |
         curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-        expand-archive ffmpeg.zip -destpath ffmpeg_temp
-        copy-item ffmpeg_temp/*/bin/ffmpeg.exe .
+        powershell Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_temp
+        copy ffmpeg_temp/*/bin/ffmpeg.exe .
 
     # 自动下载 Mac 版 FFmpeg
     - name: Download FFmpeg (Mac)
@@ -59,10 +57,12 @@ jobs:
       run: |
         pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg:." converter_v4.py
 
+    # 关键修改：升级到 v4
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 
       with:
         name: ${{ matrix.platform }}-build
         path: |
           dist/*.exe
           dist/*.app
+        if-no-files-found: error # 如果没找到文件直接报错，方便排查
