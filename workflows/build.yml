@@ -1,0 +1,68 @@
+name: Build App for Win and Mac
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            ffmpeg_url: https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-full_build-shared.zip
+          - os: macos-latest
+            platform: macos
+            ffmpeg_url: https://evermeet.cx/ffmpeg/getrelease/zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller customtkinter tkinterdnd2
+
+    # 自动下载 Windows 版 FFmpeg
+    - name: Download FFmpeg (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+        expand-archive ffmpeg.zip -destpath ffmpeg_temp
+        copy-item ffmpeg_temp/*/bin/ffmpeg.exe .
+
+    # 自动下载 Mac 版 FFmpeg
+    - name: Download FFmpeg (Mac)
+      if: matrix.platform == 'macos'
+      run: |
+        curl -L -o ffmpeg.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        unzip ffmpeg.zip
+        chmod +x ffmpeg
+
+    - name: Build with PyInstaller (Windows)
+      if: matrix.platform == 'windows'
+      run: |
+        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg.exe;." converter_v4.py
+
+    - name: Build with PyInstaller (Mac)
+      if: matrix.platform == 'macos'
+      run: |
+        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg:." converter_v4.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.platform }}-build
+        path: |
+          dist/*.exe
+          dist/*.app
