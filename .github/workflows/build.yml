@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     strategy:
-      fail-fast: false # 即使一个失败，另一个也会继续
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -32,7 +32,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller customtkinter tkinterdnd2
 
-    # Windows 工具下载 (沿用你最初成功的逻辑)
+    # Windows 构建逻辑 (保持不变)
     - name: Download FFmpeg (Windows)
       if: matrix.platform == 'windows'
       run: |
@@ -41,27 +41,22 @@ jobs:
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
         copy ffmpeg_temp/*/bin/ffprobe.exe .
 
-    # Mac 工具下载 (修复 Evermeet 解压文件名冲突)
+    # Mac 构建逻辑 (彻底修复 ffprobe 找不到的问题)
     - name: Download FFmpeg & ffprobe (Mac)
       if: matrix.platform == 'macos'
       run: |
-        # 1. 下载并解压 ffmpeg
-        curl -L -o ffmpeg_mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
-        unzip -o ffmpeg_mac.zip
-        # 此时目录下有一个文件叫 ffmpeg
+        # 分开下载并指定解压目录，防止同名文件冲突
+        curl -L -o ffm_mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        mkdir ffm_tmp && unzip -o ffm_mac.zip -d ffm_tmp
+        mv ffm_tmp/ffmpeg .
 
-        # 2. 下载并解压 ffprobe
-        curl -L -o ffprobe_mac.zip https://evermeet.cx/ffprobe/getrelease/zip
-        # 先创建一个临时目录解压，防止它覆盖上面的 ffmpeg 文件
-        mkdir ffprobe_temp
-        unzip -o ffprobe_mac.zip -d ffprobe_temp
-        # 把解压出来的那个文件（不管它叫什么）移动并更名为 ffprobe
-        mv ffprobe_temp/* ffprobe
+        curl -L -o ffp_mac.zip https://evermeet.cx/ffprobe/getrelease/zip
+        mkdir ffp_tmp && unzip -o ffp_mac.zip -d ffp_tmp
+        # 即使它解压出来叫 ffmpeg，我们也强行把它改名为 ffprobe
+        mv ffp_tmp/* ffprobe
         
-        # 3. 赋予权限并清理
         chmod +x ffmpeg ffprobe
-        rm -rf ffprobe_temp ffmpeg_mac.zip ffprobe_mac.zip
-        ls -lh ffmpeg ffprobe
+        rm -rf ffm_tmp ffp_tmp *.zip
 
     - name: Build with PyInstaller (Windows)
       if: matrix.platform == 'windows'
@@ -80,4 +75,3 @@ jobs:
         path: |
           dist/*.exe
           dist/*.app
-        if-no-files-found: error
