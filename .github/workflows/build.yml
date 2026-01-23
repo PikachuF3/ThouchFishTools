@@ -31,35 +31,34 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller customtkinter tkinterdnd2
 
-    # 下载 Windows 版 FFmpeg 工具集 (包含 ffmpeg.exe 和 ffprobe.exe)
+    # 下载 Windows 工具
     - name: Download FFmpeg (Windows)
       if: matrix.platform == 'windows'
       run: |
         curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
         powershell Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_temp
-        # 提取核心二进制文件到根目录
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
         copy ffmpeg_temp/*/bin/ffprobe.exe .
 
-    # 下载 Mac 版 FFmpeg
-    - name: Download FFmpeg (Mac)
+    # 下载 Mac 工具 (确保包含 ffprobe)
+    - name: Download FFmpeg & ffprobe (Mac)
       if: matrix.platform == 'macos'
       run: |
         curl -L -o ffmpeg.zip https://evermeet.cx/ffmpeg/getrelease/zip
-        unzip ffmpeg.zip
-        chmod +x ffmpeg
-        # 注意：Mac 版如果也需要场景检测，建议在本地环境确认 ffprobe 是否可用
+        unzip -o ffmpeg.zip
+        curl -L -o ffprobe.zip https://evermeet.cx/ffprobe/getrelease/zip
+        unzip -o ffprobe.zip
+        chmod +x ffmpeg ffprobe
 
     - name: Build with PyInstaller (Windows)
       if: matrix.platform == 'windows'
       run: |
-        # 核心：将 ffmpeg 和 ffprobe 同时打包进 exe
         pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg.exe;." --add-data "ffprobe.exe;." converter_split_v5.py
 
     - name: Build with PyInstaller (Mac)
       if: matrix.platform == 'macos'
       run: |
-        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg:." converter_split_v5.py
+        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg:." --add-data "ffprobe:." converter_split_v5.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4 
