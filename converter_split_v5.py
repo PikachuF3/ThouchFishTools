@@ -239,23 +239,26 @@ class VideoConverterApp:
             self.status_lbl.configure(text="就绪")
 
     def convert_video(self, ffmpeg_exe, in_p, out_p, start, duration, name, ep):
-        """修复音频错位及语法错误版的执行函数"""
+        """修复音频错位并适配 Apple Silicon (M1/M2/M3/M4) 硬件加速"""
         si = subprocess.STARTUPINFO() if os.name == 'nt' else None
         if si: si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         
-        # 核心修复点：
-        # 1. "192k" 必须加引号 (修复 SyntaxError)
-        # 2. -ss 放在 -i 之前确保精确定位 (修复音频错位)
-        # 3. 增加 -avoid_negative_ts 修复切割后的首帧卡顿
+        # 默认使用 CPU 编码 (libx264)
+        video_codec = "libx264"
+        
+        # 如果是 Mac，尝试使用硬件加速 (VideoToolbox)
+        if sys.platform == "darwin":
+            video_codec = "h264_videotoolbox"
+
         cmd = [
             ffmpeg_exe, "-y", 
             "-ss", str(start), 
             "-t", str(duration), 
             "-i", in_p, 
+            "-c:v", video_codec,  # 动态选择编码器
             "-b:v", self.bitrate.get(), 
             "-c:a", "aac", "-b:a", "192k", 
             "-avoid_negative_ts", "make_zero",
-            "-map_metadata", "0",
             "-movflags", "+faststart",
             "-progress", "pipe:1", 
             out_p
@@ -270,7 +273,7 @@ class VideoConverterApp:
                 h, m, s = t_match.groups()
                 cur = int(h)*3600 + int(m)*60 + float(s)
                 self.prog.set(min(cur / duration, 1.0))
-                self.status_lbl.configure(text=f"正在压制：{name} - 第{ep}集")
+                self.status_lbl.configure(text=f"正在压制(M4加速版)：{name} - 第{ep}集")
                 self.root.update_idletasks()
         proc.wait()
 
@@ -278,3 +281,4 @@ if __name__ == "__main__":
     root = RootWindow()
     app = VideoConverterApp(root)
     root.mainloop()
+
