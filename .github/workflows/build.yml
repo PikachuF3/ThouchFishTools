@@ -41,17 +41,27 @@ jobs:
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
         copy ffmpeg_temp/*/bin/ffprobe.exe .
 
-    # Mac 工具下载 (修正解压逻辑)
-    - name: Download FFmpeg (Mac)
+    # Mac 工具下载 (修复 Evermeet 解压文件名冲突)
+    - name: Download FFmpeg & ffprobe (Mac)
       if: matrix.platform == 'macos'
       run: |
-        # 下载 ffmpeg
-        curl -L -o ffmpeg.zip https://evermeet.cx/ffmpeg/getrelease/zip
-        unzip -o ffmpeg.zip
-        # 下载 ffprobe
-        curl -L -o ffprobe.zip https://evermeet.cx/ffprobe/getrelease/zip
-        unzip -o ffprobe.zip
+        # 1. 下载并解压 ffmpeg
+        curl -L -o ffmpeg_mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        unzip -o ffmpeg_mac.zip
+        # 此时目录下有一个文件叫 ffmpeg
+
+        # 2. 下载并解压 ffprobe
+        curl -L -o ffprobe_mac.zip https://evermeet.cx/ffprobe/getrelease/zip
+        # 先创建一个临时目录解压，防止它覆盖上面的 ffmpeg 文件
+        mkdir ffprobe_temp
+        unzip -o ffprobe_mac.zip -d ffprobe_temp
+        # 把解压出来的那个文件（不管它叫什么）移动并更名为 ffprobe
+        mv ffprobe_temp/* ffprobe
+        
+        # 3. 赋予权限并清理
         chmod +x ffmpeg ffprobe
+        rm -rf ffprobe_temp ffmpeg_mac.zip ffprobe_mac.zip
+        ls -lh ffmpeg ffprobe
 
     - name: Build with PyInstaller (Windows)
       if: matrix.platform == 'windows'
