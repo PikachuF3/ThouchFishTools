@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     strategy:
-      fail-fast: false # 即使一个平台失败，另一个平台也会继续跑完
+      fail-fast: false # 即使一个失败，另一个也会继续
       matrix:
         include:
           - os: windows-latest
@@ -32,8 +32,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller customtkinter tkinterdnd2
 
-    # --- Windows 工具准备 ---
-    - name: Download FFmpeg & ffprobe (Windows)
+    # Windows 工具下载 (沿用你最初成功的逻辑)
+    - name: Download FFmpeg (Windows)
       if: matrix.platform == 'windows'
       run: |
         curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
@@ -41,44 +41,28 @@ jobs:
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
         copy ffmpeg_temp/*/bin/ffprobe.exe .
 
-    # --- Mac 工具准备 (重点修复) ---
-    - name: Download FFmpeg & ffprobe (Mac)
+    # Mac 工具下载 (修正解压逻辑)
+    - name: Download FFmpeg (Mac)
       if: matrix.platform == 'macos'
       run: |
-        # 下载并解压 ffmpeg
-        curl -L -o ffmpeg_mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
-        unzip -o ffmpeg_mac.zip
-        # 下载并解压 ffprobe
-        curl -L -o ffprobe_mac.zip https://evermeet.cx/ffprobe/getrelease/zip
-        unzip -o ffprobe_mac.zip
-        # 赋予执行权限并查看文件
+        # 下载 ffmpeg
+        curl -L -o ffmpeg.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        unzip -o ffmpeg.zip
+        # 下载 ffprobe
+        curl -L -o ffprobe.zip https://evermeet.cx/ffprobe/getrelease/zip
+        unzip -o ffprobe.zip
         chmod +x ffmpeg ffprobe
-        ls -lh ffmpeg ffprobe
 
-    # --- 编译 Windows 版 ---
     - name: Build with PyInstaller (Windows)
       if: matrix.platform == 'windows'
       run: |
-        pyinstaller --noconsole --onefile \
-          --collect-all tkinterdnd2 \
-          --collect-all customtkinter \
-          --add-data "ffmpeg.exe;." \
-          --add-data "ffprobe.exe;." \
-          converter_split_v5.py
+        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg.exe;." --add-data "ffprobe.exe;." converter_split_v5.py
 
-    # --- 编译 Mac 版 ---
     - name: Build with PyInstaller (Mac)
       if: matrix.platform == 'macos'
       run: |
-        # 注意：Mac 的 add-data 分隔符是冒号 ":"
-        pyinstaller --noconsole --onefile \
-          --collect-all tkinterdnd2 \
-          --collect-all customtkinter \
-          --add-data "ffmpeg:." \
-          --add-data "ffprobe:." \
-          converter_split_v5.py
+        pyinstaller --noconsole --onefile --collect-all tkinterdnd2 --collect-all customtkinter --add-data "ffmpeg:." --add-data "ffprobe:." converter_split_v5.py
 
-    # --- 上传结果 ---
     - name: Upload Artifact
       uses: actions/upload-artifact@v4 
       with:
