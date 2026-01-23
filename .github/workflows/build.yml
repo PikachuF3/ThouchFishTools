@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false # 即使一个平台失败，另一个平台也会继续跑完
       matrix:
         include:
           - os: windows-latest
@@ -40,18 +41,19 @@ jobs:
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
         copy ffmpeg_temp/*/bin/ffprobe.exe .
 
-    # --- Mac 工具准备 (修复 Exit Code 1 问题) ---
+    # --- Mac 工具准备 (重点修复) ---
     - name: Download FFmpeg & ffprobe (Mac)
       if: matrix.platform == 'macos'
       run: |
-        # 使用强力模式下载并解压 ffmpeg
-        curl -L -o ffmpeg.zip https://evermeet.cx/ffmpeg/getrelease/zip
-        unzip -o ffmpeg.zip
-        # 使用强力模式下载并解压 ffprobe
-        curl -L -o ffprobe.zip https://evermeet.cx/ffprobe/getrelease/zip
-        unzip -o ffprobe.zip
-        # 赋予可执行权限
+        # 下载并解压 ffmpeg
+        curl -L -o ffmpeg_mac.zip https://evermeet.cx/ffmpeg/getrelease/zip
+        unzip -o ffmpeg_mac.zip
+        # 下载并解压 ffprobe
+        curl -L -o ffprobe_mac.zip https://evermeet.cx/ffprobe/getrelease/zip
+        unzip -o ffprobe_mac.zip
+        # 赋予执行权限并查看文件
         chmod +x ffmpeg ffprobe
+        ls -lh ffmpeg ffprobe
 
     # --- 编译 Windows 版 ---
     - name: Build with PyInstaller (Windows)
@@ -68,6 +70,7 @@ jobs:
     - name: Build with PyInstaller (Mac)
       if: matrix.platform == 'macos'
       run: |
+        # 注意：Mac 的 add-data 分隔符是冒号 ":"
         pyinstaller --noconsole --onefile \
           --collect-all tkinterdnd2 \
           --collect-all customtkinter \
