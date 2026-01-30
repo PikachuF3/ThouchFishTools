@@ -34,14 +34,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller customtkinter tkinterdnd2
 
-    # --- Windows 下载 FFmpeg (修复了 rm -rf 报错) ---
+    # --- Windows 下载 FFmpeg ---
     - name: Download FFmpeg (Windows)
       if: matrix.platform == 'windows'
       run: |
         curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
         powershell Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_temp
         copy ffmpeg_temp/*/bin/ffmpeg.exe .
-        # 使用 PowerShell 语法进行清理
         Remove-Item -Recurse -Force ffmpeg_temp
         Remove-Item ffmpeg.zip
 
@@ -54,43 +53,38 @@ jobs:
         chmod +x ffmpeg
         rm ffm_mac.zip
 
-    # --- Windows 打包逻辑 ---
+    # --- Windows 打包 (指向 logo 目录) ---
     - name: Build with PyInstaller (Windows)
       if: matrix.platform == 'windows'
       run: |
         pyinstaller --noconsole --onefile `
+          --icon "logo/logo.ico" `
           --collect-all tkinterdnd2 `
           --collect-all customtkinter `
           --add-data "ffmpeg.exe;." `
           --name "${{ matrix.exec_name }}" `
           "视频工厂.py"
 
-    # --- Mac 打包逻辑 (.app 模式) ---
+    # --- Mac 打包 (指向 logo 目录) ---
     - name: Build with PyInstaller (Mac)
       if: matrix.platform == 'macos'
       run: |
         pyinstaller --noconsole --onedir \
+          --icon "logo/logo.icns" \
           --collect-all tkinterdnd2 \
           --collect-all customtkinter \
           --add-data "ffmpeg:." \
           --name "${{ matrix.exec_name }}" \
           "视频工厂.py"
         
-        # 压缩 .app 文件夹以保留权限
         cd dist
         zip -r "../${{ matrix.exec_name }}_mac.zip" "${{ matrix.exec_name }}.app"
 
     # --- 上传产物 ---
-    - name: Upload Artifact (Windows)
-      if: matrix.platform == 'windows'
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4 
       with:
-        name: windows-build
-        path: dist/${{ matrix.exec_name }}
-
-    - name: Upload Artifact (Mac)
-      if: matrix.platform == 'macos'
-      uses: actions/upload-artifact@v4 
-      with:
-        name: macos-app-build
-        path: ${{ matrix.exec_name }}_mac.zip
+        name: ${{ matrix.platform }}-build
+        path: |
+          dist/${{ matrix.exec_name }}
+          ${{ matrix.exec_name }}_mac.zip
