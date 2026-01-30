@@ -2,11 +2,28 @@ import customtkinter as ct
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os, re, subprocess, threading, sys, time
+import ctypes
 from concurrent.futures import ThreadPoolExecutor
+
+# --- 1. Windows 任务栏图标修复 (必须在窗口创建前) ---
+try:
+    # 设置唯一的 AppUserModelID，让 Windows 将其视为独立应用
+    myappid = 'videofactory.pro.1.6.5'
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except:
+    pass
+
+# --- 2. 资源路径处理函数 ---
+def resource_path(relative_path):
+    """ 获取程序运行时的绝对路径 (兼容 PyInstaller 打包) """
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller 打包后的临时解压目录
+        return os.path.join(sys._MEIPASS, relative_path)
+    # 开发环境下的当前目录
+    return os.path.join(os.path.abspath("."), relative_path)
 
 # --- Windows 任务栏闪烁支持 ---
 try:
-    import ctypes
     def flash_window(hwnd):
         ctypes.windll.user32.FlashWindow(hwnd, True)
 except:
@@ -49,9 +66,17 @@ class VideoConverterApp:
     def __init__(self, root):
         self.root = root
         self.root.configure(bg="#050505")
-        self.root.title("视频工厂 Pro - v1.6.4")
+        self.root.title("视频工厂 Pro - v1.6.5")
         self.root.geometry("850x620")
         
+        # --- 3. 设置窗口左上角图标 ---
+        try:
+            icon_file = resource_path("logo.ico")
+            if os.path.exists(icon_file):
+                self.root.iconbitmap(icon_file)
+        except Exception as e:
+            print(f"图标加载失败: {e}")
+
         # --- 变量初始化 ---
         self.output_dir = tk.StringVar()
         self.bitrate = tk.StringVar(value="6000k")
@@ -157,6 +182,11 @@ class VideoConverterApp:
     def open_settings(self):
         win = tk.Toplevel(self.root); win.title("导出设置"); win.geometry("400x460"); win.configure(bg="#1a1a1a")
         win.resizable(False, False); win.transient(self.root); win.grab_set()
+        
+        # 这里的 Toplevel 也可以设置图标
+        try: win.iconbitmap(resource_path("logo.ico"))
+        except: pass
+
         container = ct.CTkFrame(win, fg_color="#1a1a1a", corner_radius=0); container.pack(fill="both", expand=True, padx=25, pady=15)
         
         ct.CTkLabel(container, text="📊 基本设置", font=("微软雅黑", 14, "bold"), text_color="#3498db").pack(anchor="w", pady=(5, 5))
@@ -181,6 +211,7 @@ class VideoConverterApp:
 
         ct.CTkButton(container, text="确 定", fg_color="#27ae60", height=35, command=win.destroy).pack(side=tk.BOTTOM, pady=(20, 5), fill="x")
 
+    # (中间的业务逻辑处理方法 get_video_duration, orchestrator, process_single_file 等保持不变...)
     def orchestrator(self):
         ffmpeg = self.ffmpeg_path; all_tasks = []
         self.root.after(0, lambda: self.status_lbl.configure(text="正在分析时长...", text_color="#95a5a6"))
@@ -364,14 +395,11 @@ class VideoConverterApp:
         if not self.tree.get_children() or not self.output_dir.get():
             messagebox.showwarning("提示", "请检查列表和输出路径"); return
         
-        # --- 1.6.4 新增：重置 Treeview 中所有视频的任务进度文字 ---
         for item_id in self.tree.get_children():
             current_vals = self.tree.item(item_id, "values")
-            # 提取括号里的总数 (x/y) 中的 y
             match = re.search(r"\((\d+)/(\d+)\)", current_vals[1])
             if match:
                 total_count = match.group(2)
-                # 将状态重置为 "等待中 (0/total)"
                 self.tree.item(item_id, values=(current_vals[0], f"等待中 (0/{total_count})"))
 
         self.status_lbl.configure(text="准备中...", text_color="#95a5a6")
@@ -384,4 +412,6 @@ class VideoConverterApp:
         threading.Thread(target=self.orchestrator, daemon=True).start()
 
 if __name__ == "__main__":
-    root = RootWindow(); app = VideoConverterApp(root); root.mainloop()
+    root = RootWindow()
+    app = VideoConverterApp(root)
+    root.mainloop()
