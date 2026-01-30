@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 # --- 1. Windows 任务栏图标修复 (必须在窗口创建前) ---
 try:
     # 设置唯一的 AppUserModelID，让 Windows 将其视为独立应用
-    myappid = 'videofactory.pro.1.6.5'
+    myappid = 'mycompany.videofactory.pro.1.6.4'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except:
     pass
@@ -66,7 +66,7 @@ class VideoConverterApp:
     def __init__(self, root):
         self.root = root
         self.root.configure(bg="#050505")
-        self.root.title("视频工厂 Pro - v1.6.5")
+        self.root.title("视频工厂 Pro - v1.6.4")
         self.root.geometry("850x620")
         
         # --- 3. 设置窗口左上角图标 ---
